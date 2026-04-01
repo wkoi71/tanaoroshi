@@ -254,14 +254,14 @@ function renderCard(){
 function goNext(){
   var val = $('qtyInput').value;
   if(val===''){alert('数量を入力してください。\nスキップする場合は「スキップ」ボタンを使ってください。');return;}
-  answers[products[idx].name] = parseInt(val,10);
+  answers[products[idx].name] = parseFloat(val,10);
   if(idx>=products.length-1){ showResult(); return; }
   idx++; renderCard();
 }
 
 function goPrev(){
   var val = $('qtyInput').value;
-  if(val!=='') answers[products[idx].name]=parseInt(val,10);
+  if(val!=='') answers[products[idx].name]=parseFloat(val,10);
   if(idx>0){ idx--; renderCard(); }
 }
 
