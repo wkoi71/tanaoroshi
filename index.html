@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>棚卸しアプリ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;background:#f5f5f5;min-height:100vh;color:#222;-webkit-text-size-adjust:100%}
+.screen{display:none;padding:1.5rem 1rem;max-width:480px;margin:0 auto}
+.screen.active{display:block}
+h1{font-size:20px;font-weight:500;margin-bottom:1.5rem}
+h2{font-size:15px;font-weight:500;margin:1rem 0 0.75rem}
+.card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+input[type=text],input[type=number]{width:100%;padding:11px 12px;border:1px solid #ccc;border-radius:8px;font-size:16px;outline:none;background:#fff;color:#222;-webkit-appearance:none;appearance:none}
+input[type=text]:focus,input[type=number]:focus{border-color:#555}
+button{display:inline-block;padding:11px 18px;border-radius:8px;font-size:14px;cursor:pointer;border:1px solid #ccc;background:#fff;color:#222;-webkit-appearance:none;appearance:none;touch-action:manipulation}
+.btn-primary{background:#222;color:#fff;border-color:#222}
+.btn-danger{color:#c00;border-color:#f5c0c0}
+.tab-row{display:flex;gap:8px;margin-bottom:1rem}
+.tab{padding:9px 16px;border-radius:8px;border:1px solid #ccc;background:#fff;font-size:14px;cursor:pointer;color:#666}
+.tab.active{background:#222;color:#fff;border-color:#222}
+.add-row{display:flex;gap:8px;align-items:center}
+.add-row input:first-child{flex:2}
+.add-row input:nth-child(2){flex:1}
+.badge{display:inline-block;background:#f0f0f0;color:#666;border-radius:20px;padding:2px 10px;font-size:12px;margin-left:6px}
+.product-item{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f0f0;font-size:14px}
+.product-item:last-child{border-bottom:none}
+.unit-label{color:#999;font-size:12px;margin-left:6px}
+.empty{text-align:center;color:#bbb;font-size:14px;padding:2rem 0}
+.progress-bar{background:#e8e8e8;border-radius:4px;height:6px;margin-bottom:6px}
+.progress-fill{background:#222;border-radius:4px;height:6px;transition:width 0.3s}
+.progress-text{font-size:13px;color:#888;margin-bottom:1.25rem}
+.big-card{background:#fff;border:1px solid #e0e0e0;border-radius:16px;padding:2rem 1.5rem;text-align:center;margin-bottom:1.5rem}
+.product-name{font-size:22px;font-weight:500;margin-bottom:0.4rem;word-break:break-all}
+.unit-hint{font-size:13px;color:#999;margin-bottom:1.25rem;min-height:18px}
+.qty-input{font-size:30px;text-align:center;border:1px solid #ccc;border-radius:8px;padding:14px;width:100%;-webkit-appearance:none;appearance:none;color:#222;background:#fff}
+.btn-row{display:flex;gap:8px;margin-bottom:10px}
+.btn-row button{flex:1}
+.btn-row button.main{flex:2}
+.skip-btn{width:100%;color:#aaa;border-color:#eee;font-size:13px;padding:10px}
+.stat-row{display:flex;gap:8px;margin-bottom:1rem}
+.stat-card{flex:1;background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:1rem;text-align:center}
+.stat-label{font-size:12px;color:#999;margin-bottom:4px}
+.stat-val{font-size:22px;font-weight:500}
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f5f5f5;font-size:14px}
+.result-row:last-child{border-bottom:none}
+.result-qty{font-weight:500}
+.result-skip{color:#ccc}
+.action-row{display:flex;gap:8px;margin-bottom:10px}
+.action-row button{flex:1}
+.back-btn{width:100%;color:#aaa;border-color:#eee;font-size:13px;padding:10px}
+</style>
+</head>
+<body>
+
+<!-- セットアップ -->
+<div id="setupScreen" class="screen active">
+  <h1>棚卸しアプリ</h1>
+  <div class="tab-row">
+    <button class="tab active" onclick="showTab('csv')">CSVで読み込む</button>
+    <button class="tab" onclick="showTab('manual')">手入力で追加</button>
+  </div>
+
+  <div id="csvTab" class="card">
+    <p style="font-size:13px;color:#888;margin-bottom:1rem">形式：商品名,単位（1行1商品）</p>
+    <input type="file" id="csvFile" accept=".csv,.txt" style="display:none" onchange="loadCSV(event)">
+    <button onclick="document.getElementById('csvFile').click()">ファイルを選択</button>
+    <span id="csvStatus" style="font-size:13px;color:#888;margin-left:8px;display:inline-block;margin-top:8px"></span>
+  </div>
+
+  <div id="manualTab" class="card" style="display:none">
+    <div class="add-row">
+      <input type="text" id="nameInput" placeholder="商品名" onkeydown="if(event.key==='Enter')document.getElementById('unitInput').focus()">
+      <input type="text" id="unitInput" placeholder="単位（例：本）" onkeydown="if(event.key==='Enter')addProduct()">
+      <button class="btn-primary" onclick="addProduct()">追加</button>
+    </div>
+  </div>
+
+  <h2>登録済み商品 <span id="countBadge" class="badge">0件</span></h2>
+  <div id="productList" class="card">
+    <div class="empty">商品がまだありません</div>
+  </div>
+
+  <button class="btn-primary" id="startBtn" style="width:100%;padding:14px;font-size:15px" disabled onclick="startInventory()">棚卸しを開始</button>
+</div>
+
+<!-- 棚卸し -->
+<div id="inventoryScreen" class="screen">
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-text" id="progressText">0 / 0</div>
+  <div class="big-card">
+    <div class="unit-hint" id="productIndex">1 / 1</div>
+    <div class="product-name" id="currentName"></div>
+    <div class="unit-hint" id="unitHint"></div>
+    <input type="number" class="qty-input" id="qtyInput" placeholder="0" min="0" inputmode="numeric" onkeydown="if(event.key==='Enter')goNext()">
+  </div>
+  <div class="btn-row">
+    <button id="prevBtn" onclick="goPrev()">← 戻る</button>
+    <button class="btn-primary main" id="nextBtn" onclick="goNext()">次へ →</button>
+  </div>
+  <button class="skip-btn" onclick="skipProduct()">スキップ（未入力のまま次へ）</button>
+</div>
+
+<!-- 結果 -->
+<div id="resultScreen" class="screen">
+  <h1>棚卸し完了</h1>
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-label">入力済み</div><div class="stat-val" id="doneCount">0</div></div>
+    <div class="stat-card"><div class="stat-label">スキップ</div><div class="stat-val" id="skipCount">0</div></div>
+  </div>
+  <div class="card" id="resultList"></div>
+  <div class="action-row">
+    <button class="btn-primary" onclick="downloadCSV()">CSVダウンロード</button>
+    <button onclick="restartInventory()">やり直す</button>
+  </div>
+  <button class="back-btn" onclick="goSetup()">商品登録に戻る</button>
+</div>
+
+<script>
+var products = [];
+var answers = {};
+var idx = 0;
+
+function $(id){ return document.getElementById(id); }
+
+function showTab(t){
+  $('csvTab').style.display = t==='csv'?'block':'none';
+  $('manualTab').style.display = t==='manual'?'block':'none';
+  var tabs = document.querySelectorAll('.tab');
+  tabs[0].className = 'tab'+(t==='csv'?' active':'');
+  tabs[1].className = 'tab'+(t==='manual'?' active':'');
+}
+
+function loadCSV(e){
+  var file = e.target.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    var lines = ev.target.result.split(/[\r\n]+/).filter(function(l){ return l.trim(); });
+    var added = 0;
+    lines.forEach(function(line){
+      var parts = line.split(',');
+      var name = (parts[0]||'').trim();
+      var unit = (parts[1]||'').trim();
+      if(name && !products.find(function(p){ return p.name===name; })){
+        products.push({name:name, unit:unit});
+        added++;
+      }
+    });
+    $('csvStatus').textContent = added+'件追加しました';
+    renderList();
+  };
+  reader.readAsText(file,'UTF-8');
+  e.target.value='';
+}
+
+function addProduct(){
+  var name = $('nameInput').value.trim();
+  var unit = $('unitInput').value.trim();
+  if(!name) return;
+  if(!products.find(function(p){ return p.name===name; })){
+    products.push({name:name, unit:unit});
+    renderList();
+  }
+  $('nameInput').value='';
+  $('unitInput').value='';
+  $('nameInput').focus();
+}
+
+function removeProduct(i){
+  products.splice(i,1);
+  renderList();
+}
+
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderList(){
+  $('countBadge').textContent = products.length+'件';
+  $('startBtn').disabled = products.length===0;
+  if(products.length===0){
+    $('productList').innerHTML='<div class="empty">商品がまだありません</div>';
+    return;
+  }
+  $('productList').innerHTML = products.map(function(p,i){
+    return '<div class="product-item"><span>'+esc(p.name)+(p.unit?'<span class="unit-label">'+esc(p.unit)+'</span>':'')+'</span>'
+      +'<button class="btn-danger" onclick="removeProduct('+i+')">削除</button></div>';
+  }).join('');
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  $(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function startInventory(){
+  if(!products.length) return;
+  answers={};idx=0;
+  showScreen('inventoryScreen');
+  renderCard();
+}
+
+function renderCard(){
+  var p = products[idx];
+  var total = products.length;
+  $('progressFill').style.width = (idx/total*100)+'%';
+  $('progressText').textContent = idx+' / '+total;
+  $('productIndex').textContent = (idx+1)+' / '+total;
+  $('currentName').textContent = p.name;
+  $('unitHint').textContent = p.unit ? '単位：'+p.unit : '';
+  $('prevBtn').disabled = idx===0;
+  $('nextBtn').textContent = idx===total-1 ? '完了' : '次へ →';
+  var q = $('qtyInput');
+  q.value = answers[p.name]!==undefined ? answers[p.name] : '';
+  setTimeout(function(){ q.focus(); }, 100);
+}
+
+function goNext(){
+  var val = $('qtyInput').value;
+  if(val===''){alert('数量を入力してください。\nスキップする場合は「スキップ」ボタンを使ってください。');return;}
+  answers[products[idx].name] = parseInt(val,10);
+  if(idx>=products.length-1){ showResult(); return; }
+  idx++;
+  renderCard();
+}
+
+function goPrev(){
+  var val = $('qtyInput').value;
+  if(val!=='') answers[products[idx].name]=parseInt(val,10);
+  if(idx>0){ idx--; renderCard(); }
+}
+
+function skipProduct(){
+  if(idx>=products.length-1){ showResult(); return; }
+  idx++;
+  renderCard();
+}
+
+function showResult(){
+  var done=0, skip=0;
+  var html = products.map(function(p){
+    var q = answers[p.name];
+    if(q!==undefined) done++; else skip++;
+    return '<div class="result-row"><span>'+esc(p.name)+(p.unit?'<span class="unit-label">'+esc(p.unit)+'</span>':'')+'</span>'
+      +'<span class="result-qty'+(q===undefined?' result-skip':'')+'">'+( q!==undefined?q:'-')+'</span></div>';
+  }).join('');
+  $('doneCount').textContent=done;
+  $('skipCount').textContent=skip;
+  $('resultList').innerHTML=html;
+  showScreen('resultScreen');
+}
+
+function downloadCSV(){
+  var bom='\uFEFF', header='商品名,単位,在庫数\n';
+  var rows=products.map(function(p){
+    return '"'+p.name+'","'+(p.unit||'')+'",'+( answers[p.name]!==undefined?answers[p.name]:'');
+  }).join('\n');
+  var blob=new Blob([bom+header+rows],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  var d=new Date();
+  a.download='棚卸し_'+d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2)+'.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function restartInventory(){
+  answers={};idx=0;
+  showScreen('inventoryScreen');
+  renderCard();
+}
+
+function goSetup(){
+  showScreen('setupScreen');
+}
+</script>
+</body>
+</html>
