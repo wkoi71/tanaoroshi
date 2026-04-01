@@ -50,7 +50,6 @@ button{display:inline-block;padding:11px 18px;border-radius:8px;font-size:14px;c
 .action-row{display:flex;gap:8px;margin-bottom:10px}
 .action-row button{flex:1;font-size:13px;padding:11px 10px}
 .back-btn{width:100%;color:#aaa;border-color:#eee;font-size:13px;padding:10px}
-.info-box{background:#f0f7ff;border:1px solid #c8e0f7;border-radius:8px;padding:12px;font-size:13px;color:#336;margin-bottom:1rem;line-height:1.6}
 </style>
 </head>
 <body>
@@ -59,23 +58,13 @@ button{display:inline-block;padding:11px 18px;border-radius:8px;font-size:14px;c
 <div id="setupScreen" class="screen active">
   <h1>棚卸しアプリ</h1>
 
-  <div class="info-box" id="loadStatus">商品リストを読み込み中...</div>
-
   <div class="tab-row">
-    <button class="tab active" onclick="showTab('auto')">自動読み込み済み</button>
-    <button class="tab" onclick="showTab('csv')">CSVで追加</button>
+    <button class="tab active" onclick="showTab('default')">商品リスト</button>
     <button class="tab" onclick="showTab('manual')">手入力で追加</button>
   </div>
 
-  <div id="autoTab" class="card">
-    <p style="font-size:13px;color:#888">リポジトリの <strong>products.csv</strong> から自動で読み込みます。<br>商品を変更したい場合はGitHub上のCSVを編集してください。</p>
-  </div>
-
-  <div id="csvTab" class="card" style="display:none">
-    <p style="font-size:13px;color:#888;margin-bottom:1rem">形式：商品名,単位（1行1商品）</p>
-    <input type="file" id="csvFile" accept=".csv,.txt" style="display:none" onchange="loadCSVFile(event)">
-    <button onclick="document.getElementById('csvFile').click()">ファイルを選択</button>
-    <span id="csvStatus" style="font-size:13px;color:#888;margin-left:8px;display:inline-block;margin-top:8px"></span>
+  <div id="defaultTab" class="card">
+    <p style="font-size:13px;color:#888">デフォルトの商品リスト（131件）が読み込まれています。<br>手入力タブから商品を追加することもできます。</p>
   </div>
 
   <div id="manualTab" class="card" style="display:none">
@@ -87,11 +76,9 @@ button{display:inline-block;padding:11px 18px;border-radius:8px;font-size:14px;c
   </div>
 
   <h2>登録済み商品 <span id="countBadge" class="badge">0件</span></h2>
-  <div id="productList" class="card">
-    <div class="empty">読み込み中...</div>
-  </div>
+  <div id="productList" class="card"></div>
 
-  <button class="btn-primary" id="startBtn" style="width:100%;padding:14px;font-size:15px" disabled onclick="startInventory()">棚卸しを開始</button>
+  <button class="btn-primary" id="startBtn" style="width:100%;padding:14px;font-size:15px" onclick="startInventory()">棚卸しを開始</button>
 </div>
 
 <!-- 棚卸し -->
@@ -120,74 +107,96 @@ button{display:inline-block;padding:11px 18px;border-radius:8px;font-size:14px;c
   </div>
   <div class="card" id="resultList"></div>
   <div class="action-row">
-    <button class="btn-primary" onclick="downloadCSV()">📥 CSVダウンロード</button>
+    <button class="btn-primary" onclick="downloadCSV()">CSVダウンロード</button>
     <button onclick="restartInventory()">やり直す</button>
   </div>
   <button class="back-btn" onclick="goSetup()">商品登録に戻る</button>
 </div>
 
 <script>
-var products = [];
+var DEFAULT_PRODUCTS = [
+  {name:"紅芋ペースト",unit:"個"},{name:"黒ごまペースト",unit:"個"},
+  {name:"ブルーベリージャム",unit:"個"},{name:"イチゴジャム",unit:"個"},
+  {name:"グラニュー糖",unit:"個"},{name:"バナナ",unit:"房"},
+  {name:"薄力粉",unit:"個"},{name:"卵",unit:"パック"},
+  {name:"生クリーム",unit:"個"},{name:"さつまいものグラノーラ",unit:"個"},
+  {name:"紗々",unit:"個"},{name:"いちご",unit:"個"},
+  {name:"いちごのグラノーラ",unit:"個"},{name:"チョコのグラノーラ",unit:"個"},
+  {name:"バター",unit:"個"},{name:"さつまいも",unit:"袋"},
+  {name:"チョコケーキ",unit:"個"},{name:"チョコソース",unit:"個"},
+  {name:"芋グラノーラ",unit:"個"},{name:"芋ジェラート",unit:"ケース"},
+  {name:"クリームチーズ",unit:"箱"},{name:"チョコクッキー",unit:"箱"},
+  {name:"冷凍白玉",unit:"袋"},{name:"アーモンドクッキー",unit:"箱"},
+  {name:"庄籠あんこ",unit:"個"},{name:"ミルクアイス",unit:"ケース"},
+  {name:"粉糖",unit:"個"},{name:"ワッフル",unit:"個"},
+  {name:"桃シロップ",unit:"本"},{name:"ジンジャーシロップ",unit:"本"},
+  {name:"梅はちみつシロップ",unit:"本"},{name:"チェリーコーラシロップ",unit:"本"},
+  {name:"クラフトコーラシロップ",unit:"本"},{name:"エスプレッソベース",unit:"本"},
+  {name:"大葉",unit:"個"},{name:"ジンジャービア",unit:"本"},
+  {name:"ライムシロップ",unit:"本"},{name:"カシスリキュール",unit:"本"},
+  {name:"ルイボスティー茶葉",unit:"袋"},{name:"はちみつ",unit:"個"},
+  {name:"白ワイン",unit:"本"},{name:"HOT赤ワイン",unit:"本"},
+  {name:"HOT白ワイン",unit:"本"},{name:"赤ワイン",unit:"本"},
+  {name:"ビターズシロップ",unit:"本"},{name:"氷",unit:"袋"},
+  {name:"レモン",unit:"個"},{name:"ガムシロップ",unit:"本"},
+  {name:"ミルク(珈琲用)",unit:"袋"},{name:"シロップ(珈琲用)",unit:"袋"},
+  {name:"水",unit:"本"},{name:"ソーダ",unit:"本"},
+  {name:"牛乳",unit:"本"},{name:"ブランデー",unit:"本"},
+  {name:"メロンクリームソーダ",unit:"本"},{name:"桃ゼリー",unit:"個"},
+  {name:"シナモン（粉）",unit:"個"},{name:"アップルジュース",unit:"本"},
+  {name:"オレンジジュース",unit:"本"},{name:"トマトジュース",unit:"本"},
+  {name:"ハイネケン",unit:"本"},{name:"ビール",unit:"本"},
+  {name:"翠ジン",unit:"本"},{name:"ラム",unit:"本"},
+  {name:"ウイスキー",unit:"本"},{name:"冷凍ミックスベリー",unit:"袋"},
+  {name:"冷凍みかん",unit:"袋"},{name:"シナモン（棒）",unit:"袋"},
+  {name:"川辺",unit:"本"},{name:"常楽梅酒",unit:"本"},
+  {name:"常楽ウイスキー",unit:"本"},{name:"高田ジン",unit:"本"},
+  {name:"極楽",unit:"本"},{name:"球磨川",unit:"本"},
+  {name:"誉の露",unit:"本"},{name:"大石",unit:"本"},
+  {name:"球磨の泉",unit:"本"},{name:"武者返し",unit:"本"},
+  {name:"ロングペッパーリキュール",unit:"本"},{name:"あさぎりの花",unit:"本"},
+  {name:"赤梅酒",unit:"本"},{name:"桃リキュール",unit:"本"},
+  {name:"ゆずリキュール",unit:"本"},{name:"ヨーグルトリキュール",unit:"本"},
+  {name:"紅茶リキュール",unit:"本"},{name:"珈琲リキュール",unit:"本"},
+  {name:"コーヒー豆",unit:"袋"},{name:"玉緑茶茶葉",unit:"袋"},
+  {name:"ほうじ茶茶葉",unit:"袋"},{name:"抹茶パウダー",unit:"袋"},
+  {name:"マリブリキュール",unit:"本"},{name:"パイナップルジュース",unit:"本"},
+  {name:"トニックウォーター",unit:"本"},{name:"ブルーキュラソーシロップ",unit:"本"},
+  {name:"恋しそう",unit:"本"},{name:"ウォッカ",unit:"本"},
+  {name:"さくらんぼ",unit:"袋"},{name:"生ハム",unit:"個"},
+  {name:"ジャガイモ",unit:"袋"},{name:"乾燥パセリ",unit:"本"},
+  {name:"粉チーズ",unit:"本"},{name:"ソーセージ",unit:"パック"},
+  {name:"クレイジーソルト",unit:"本"},{name:"ホワイトチーズ",unit:"個"},
+  {name:"サラミ",unit:"袋"},{name:"タルタルソース",unit:"袋"},
+  {name:"マスタード",unit:"個"},{name:"ケチャップ",unit:"個"},
+  {name:"ミックスナッツ",unit:"袋"},{name:"クラッカー",unit:"箱"},
+  {name:"オリーブ",unit:"個"},{name:"ハーブソルト",unit:"本"},
+  {name:"ポップコーン",unit:"個"},{name:"油",unit:"本"},
+  {name:"山うに",unit:"個"},{name:"冷凍魚",unit:"袋"},
+  {name:"六調子ウォッカ",unit:"本"},{name:"九代目",unit:"本"},
+  {name:"宮の誉",unit:"本"},{name:"山河",unit:"本"},
+  {name:"樽抜群",unit:"本"},{name:"文蔵梅酒",unit:"本"},
+  {name:"繊月",unit:"本"},{name:"水鏡無私",unit:"本"},
+  {name:"萬緑",unit:"本"},{name:"シトラスジン",unit:"本"},
+  {name:"鳥飼",unit:"本"},{name:"kaoru",unit:"本"},
+  {name:"桜パウダー",unit:"個"},{name:"桜の塩漬け",unit:"袋"},
+  {name:"桜あん",unit:"袋"}
+];
+
+var products = DEFAULT_PRODUCTS.slice();
 var answers = {};
 var idx = 0;
 
 function $(id){ return document.getElementById(id); }
 
-// GitHub上のproducts.csvを自動読み込み
-window.addEventListener('load', function(){
-  fetch('products.csv')
-    .then(function(r){
-      if(!r.ok) throw new Error('not found');
-      return r.text();
-    })
-    .then(function(text){
-      parseCSVText(text);
-      $('loadStatus').textContent = '✅ products.csv から ' + products.length + '件 読み込みました';
-      $('loadStatus').style.background = '#f0fff4';
-      $('loadStatus').style.borderColor = '#9de0b0';
-      $('loadStatus').style.color = '#1a5c2e';
-    })
-    .catch(function(){
-      $('loadStatus').textContent = '⚠️ products.csv が見つかりません。CSVを選択するか手入力で商品を追加してください。';
-      $('loadStatus').style.background = '#fff8f0';
-      $('loadStatus').style.borderColor = '#f5c89d';
-      $('loadStatus').style.color = '#7a3b00';
-      renderList();
-    });
-});
-
-function parseCSVText(text){
-  var lines = text.split(/[\r\n]+/).filter(function(l){ return l.trim(); });
-  lines.forEach(function(line){
-    var parts = line.split(',');
-    var name = (parts[0]||'').trim().replace(/^"|"$/g,'');
-    var unit = (parts[1]||'').trim().replace(/^"|"$/g,'');
-    if(name && !products.find(function(p){ return p.name===name; })){
-      products.push({name:name, unit:unit});
-    }
-  });
-  renderList();
-}
+renderList();
 
 function showTab(t){
-  ['autoTab','csvTab','manualTab'].forEach(function(id){ $(id).style.display='none'; });
-  $(t+'Tab').style.display='block';
+  $('defaultTab').style.display = t==='default'?'block':'none';
+  $('manualTab').style.display = t==='manual'?'block':'none';
   var tabs = document.querySelectorAll('.tab');
-  var map = {auto:0, csv:1, manual:2};
-  tabs.forEach(function(tab,i){ tab.className = 'tab'+(i===map[t]?' active':''); });
-}
-
-function loadCSVFile(e){
-  var file = e.target.files[0];
-  if(!file) return;
-  var reader = new FileReader();
-  reader.onload = function(ev){
-    var before = products.length;
-    parseCSVText(ev.target.result);
-    $('csvStatus').textContent = (products.length - before)+'件追加しました';
-  };
-  reader.readAsText(file,'UTF-8');
-  e.target.value='';
+  tabs[0].className = 'tab'+(t==='default'?' active':'');
+  tabs[1].className = 'tab'+(t==='manual'?' active':'');
 }
 
 function addProduct(){
@@ -212,7 +221,6 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
 function renderList(){
   $('countBadge').textContent = products.length+'件';
-  $('startBtn').disabled = products.length===0;
   if(products.length===0){
     $('productList').innerHTML='<div class="empty">商品がまだありません</div>';
     return;
@@ -289,25 +297,20 @@ function downloadCSV(){
   var rows=products.map(function(p){
     return '"'+p.name+'","'+(p.unit||'"),'+(answers[p.name]!==undefined?answers[p.name]:'');
   }).join('\n');
-  var csvContent = bom+header+rows;
+  var csvContent=bom+header+rows;
   var d=new Date();
   var filename='棚卸し_'+d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2)+'.csv';
-
-  // スマホ対応：data URIで開く
-  try {
+  try{
     var blob=new Blob([csvContent],{type:'text/csv;charset=utf-8'});
     var url=URL.createObjectURL(blob);
     var a=document.createElement('a');
-    a.href=url;
-    a.download=filename;
+    a.href=url; a.download=filename;
     a.style.display='none';
     document.body.appendChild(a);
     a.click();
-    setTimeout(function(){ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
-  } catch(e) {
-    // フォールバック：data URIで新しいタブに開く
-    var uri='data:text/csv;charset=utf-8,'+encodeURIComponent(csvContent);
-    window.open(uri,'_blank');
+    setTimeout(function(){ URL.revokeObjectURL(url); document.body.removeChild(a); },1000);
+  }catch(e){
+    window.open('data:text/csv;charset=utf-8,'+encodeURIComponent(csvContent),'_blank');
   }
 }
 
