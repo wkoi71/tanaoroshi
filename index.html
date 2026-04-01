@@ -82,7 +82,7 @@ button{display:inline-block;padding:11px 18px;border-radius:8px;font-size:14px;c
     <div class="unit-hint" id="productIndex">1 / 1</div>
     <div class="product-name" id="currentName"></div>
     <div class="unit-hint" id="unitHint"></div>
-    <input type="number" class="qty-input" id="qtyInput" placeholder="0" min="0" inputmode="numeric" onkeydown="if(event.key==='Enter')goNext()">
+    <input type="number" class="qty-input" id="qtyInput" placeholder="0" min="0" step="0.1" inputmode="decimal" onkeydown="if(event.key==='Enter')goNext()">
   </div>
   <div class="btn-row">
     <button id="prevBtn" onclick="goPrev()">← 戻る</button>
@@ -254,14 +254,14 @@ function renderCard(){
 function goNext(){
   var val = $('qtyInput').value;
   if(val===''){alert('数量を入力してください。\nスキップする場合は「スキップ」ボタンを使ってください。');return;}
-  answers[products[idx].name] = parseFloat(val,10);
+  answers[products[idx].name] = parseFloat(val);
   if(idx>=products.length-1){ showResult(); return; }
   idx++; renderCard();
 }
 
 function goPrev(){
   var val = $('qtyInput').value;
-  if(val!=='') answers[products[idx].name]=parseFloat(val,10);
+  if(val!=='') answers[products[idx].name]=parseFloat(val);
   if(idx>0){ idx--; renderCard(); }
 }
 
